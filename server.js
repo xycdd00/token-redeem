@@ -137,4 +137,3 @@ app.listen(port, () => {
     console.log('- IDATARIVER_PRODUCT_ID:', IDATARIVER_PRODUCT_ID ? '✅ 已配置' : '❌ 未配置');
     console.log('- NEWAPI_BASE_URL:', NEWAPI_BASE_URL ? '✅ 已配置' : '❌ 未配置');
     console.log('- NEWAPI_ADMIN_KEY:', NEWAPI_ADMIN_KEY ? '✅ 已配置' : '❌ 未配置');
-});
