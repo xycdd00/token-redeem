@@ -76,7 +76,7 @@ app.post('/redeem', async (req, res) => {
             headers: {
                 'Authorization': `Bearer ${NEWAPI_ADMIN_KEY}`,
                 'Content-Type': 'application/json',
-                'New-Api-User': '0'
+                'New-Api-User': process.env.NEWAPI_USER_ID
             }
         });
 
