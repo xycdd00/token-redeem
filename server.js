@@ -80,11 +80,17 @@ app.post('/redeem', async (req, res) => {
             }
         });
 
-        // 更稳健地获取令牌
-const responseData = tokenResponse.data;
-const newToken = responseData.data?.key || responseData.key || responseData.token;
-        console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
+        // 更稳健地获取令牌，兼容多种返回格式
+        const responseData = tokenResponse.data;
+        const newToken = responseData.data?.key || responseData.key || responseData.token || '';
 
+        if (!newToken) {
+            // 如果没找到令牌，记录详细错误并返回友好提示
+            console.error('未从New-API响应中找到令牌，完整响应:', JSON.stringify(responseData));
+            return res.status(500).json({ success: false, message: '令牌生成失败，请检查New-API配置或联系管理员' });
+        }
+
+        console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
         // 4. 激活授权码（标记为已使用，防止重复兑换）
         try {
             await axios.post(`https://api.idatariver.com/mapi/license/activate`, {
