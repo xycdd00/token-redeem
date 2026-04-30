@@ -81,9 +81,7 @@ app.post('/redeem', async (req, res) => {
         });
 
         // 更稳健地获取令牌，兼容多种返回格式
-        const responseData = tokenResponse.data;
-        const newToken = responseData.data?.key || responseData.key || responseData.token || '';
-
+        const newToken = tokenResponse.data.key || tokenResponse.data.data?.key || '';
         if (!newToken) {
             // 如果没找到令牌，记录详细错误并返回友好提示
             console.error('未从New-API响应中找到令牌，完整响应:', JSON.stringify(responseData));
