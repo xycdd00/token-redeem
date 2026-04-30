@@ -27,52 +27,40 @@ app.post('/redeem', async (req, res) => {
     }
 
     try {
-     // 1. 调用iDataRiver官方API验证授权码
-console.log(`正在验证授权码: ${licenseKey}`);
-const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/query`, {
-    params: {
-        code: licenseKey,
-        product_id: IDATARIVER_PRODUCT_ID
-    },
-    headers: {
-        'Authorization': `Bearer ${IDATARIVER_API_KEY}`
-    }
-});
+        // 1. 调用iDataRiver官方API验证授权码
+        console.log(`正在验证授权码: ${licenseKey}`);
+        const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/query`, {
+            params: {
+                code: licenseKey,
+                product_id: IDATARIVER_PRODUCT_ID
+            },
+            headers: {
+                'Authorization': `Bearer ${IDATARIVER_API_KEY}`
+            }
+        });
 
         const licenseData = verifyResponse.data;
         console.log('iDataRiver 验证响应:', JSON.stringify(licenseData));
 
-        // 检查授权码状态 (status === 'active' 表示可用)
-        if (!licenseData.success || licenseData.status !== 'active') {
-            return res.status(400).json({ 
-                success: false, 
-                message: licenseData.message || '授权码无效或已被使用' 
-            });
+        // 检查授权码状态
+        if (!licenseData.result || !licenseData.result.items || licenseData.result.items.length === 0) {
+            return res.status(400).json({ success: false, message: '授权码无效或查询失败' });
         }
-
-        // 2. 授权码有效，调用New-API创建令牌
-        console.log('授权码验证通过，正在生成API令牌...');
         
-        // 根据套餐设置不同的Token额度（你可以根据实际商品名调整）
-        let tokenQuota = 1000000; // 默认100万Token
-        if (licenseData.skuName && licenseData.skuName.includes('开发者')) {
-            tokenQuota = 7500000;
-        } else if (licenseData.skuName && licenseData.skuName.includes('全家桶')) {
-            tokenQuota = 5000000;
+        const licenseItem = licenseData.result.items[0];
+        if (licenseItem.status !== 'VALID') {
+            return res.status(400).json({ success: false, message: '授权码无效或已被使用' });
         }
 
-        const tokenResponse = await axios.post(`${NEWAPI_BASE_URL}/api/token/`, {
-            name: `兑换-${licenseKey.substring(0, 8)}`,
-            remain_quota: tokenQuota,
-            unlimited_quota: false,
-        }, {
-            headers: {        // 2. 从业务参数中获取额度，默认为1000000
+        // 2. 从业务参数中获取额度，默认为1000000
         let tokenQuota = 1000000;
         try {
-            const states = JSON.parse(licenseData.result.items[0].states);
-            if (states.quota) {
-                tokenQuota = states.quota;
-                console.log(`从业务参数中获取额度: ${tokenQuota}`);
+            if (licenseItem.states) {
+                const states = JSON.parse(licenseItem.states);
+                if (states.quota) {
+                    tokenQuota = states.quota;
+                    console.log(`从业务参数中获取额度: ${tokenQuota}`);
+                }
             }
         } catch (e) {
             console.log('无法解析业务参数，使用默认额度');
@@ -88,44 +76,30 @@ const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/
             headers: {
                 'Authorization': `Bearer ${NEWAPI_ADMIN_KEY}`,
                 'Content-Type': 'application/json',
-                'New-Api-User': '0'  // 增加这一行
+                'New-Api-User': '0'
             }
         });
 
         const newToken = tokenResponse.data.data.key;
         console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
 
-        // 4. 激活授权码...
-        // （激活代码保持不变，但应使用 Bearer 认证）
-
-        // 5. 返回令牌给用户
-        res.json({
-            success: true,
-            message: '兑换成功！',
-            apiKey: newToken
-        });
-
-        const newToken = tokenResponse.data.data.key;
-        console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
-
-        // 3. 激活授权码（标记为已使用，防止重复兑换）
+        // 4. 激活授权码（标记为已使用，防止重复兑换）
         try {
-          await axios.post(`https://api.idatariver.com/mapi/license/activate`, {
-    code: licenseKey,
-    product_id: IDATARIVER_PRODUCT_ID
-}, {
-    headers: {
-        'Authorization': `Bearer ${IDATARIVER_API_KEY}`,
-        'Content-Type': 'application/json'
-    }
-});
+            await axios.post(`https://api.idatariver.com/mapi/license/activate`, {
+                code: licenseKey,
+                product_id: IDATARIVER_PRODUCT_ID
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${IDATARIVER_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
             console.log('授权码已激活');
         } catch (activateError) {
             console.error('激活授权码失败:', activateError.response?.data || activateError.message);
-            // 即使激活失败，令牌已经生成，仍返回成功但记录错误
         }
 
-        // 4. 返回令牌给用户
+        // 5. 返回令牌给用户
         res.json({
             success: true,
             message: '兑换成功！',
