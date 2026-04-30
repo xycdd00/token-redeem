@@ -66,10 +66,43 @@ const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/
             remain_quota: tokenQuota,
             unlimited_quota: false,
         }, {
+            headers: {        // 2. 从业务参数中获取额度，默认为1000000
+        let tokenQuota = 1000000;
+        try {
+            const states = JSON.parse(licenseData.result.items[0].states);
+            if (states.quota) {
+                tokenQuota = states.quota;
+                console.log(`从业务参数中获取额度: ${tokenQuota}`);
+            }
+        } catch (e) {
+            console.log('无法解析业务参数，使用默认额度');
+        }
+
+        // 3. 授权码有效，调用New-API创建令牌
+        console.log('授权码验证通过，正在生成API令牌...');
+        const tokenResponse = await axios.post(`${NEWAPI_BASE_URL}/api/token/`, {
+            name: `兑换-${licenseKey.substring(0, 8)}`,
+            remain_quota: tokenQuota,
+            unlimited_quota: false,
+        }, {
             headers: {
                 'Authorization': `Bearer ${NEWAPI_ADMIN_KEY}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'New-Api-User': '0'  // 增加这一行
             }
+        });
+
+        const newToken = tokenResponse.data.data.key;
+        console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
+
+        // 4. 激活授权码...
+        // （激活代码保持不变，但应使用 Bearer 认证）
+
+        // 5. 返回令牌给用户
+        res.json({
+            success: true,
+            message: '兑换成功！',
+            apiKey: newToken
         });
 
         const newToken = tokenResponse.data.data.key;
