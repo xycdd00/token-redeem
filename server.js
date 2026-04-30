@@ -27,13 +27,15 @@ app.post('/redeem', async (req, res) => {
     }
 
     try {
-      // 1. 调用iDataRiver官方API验证授权码
+     // 1. 调用iDataRiver官方API验证授权码
 console.log(`正在验证授权码: ${licenseKey}`);
 const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/query`, {
     params: {
         code: licenseKey,
-        secret: IDATARIVER_API_KEY, // 密钥作为查询参数传递
         product_id: IDATARIVER_PRODUCT_ID
+    },
+    headers: {
+        'Authorization': `Bearer ${IDATARIVER_API_KEY}`
     }
 });
 
@@ -75,11 +77,13 @@ const verifyResponse = await axios.get(`https://api.idatariver.com/mapi/license/
 
         // 3. 激活授权码（标记为已使用，防止重复兑换）
         try {
-           await axios.post(`https://api.idatariver.com/mapi/license/activate`, null, {
-    params: {
-        code: licenseKey,
-        secret: IDATARIVER_API_KEY, // 密钥作为查询参数传递
-        product_id: IDATARIVER_PRODUCT_ID
+          await axios.post(`https://api.idatariver.com/mapi/license/activate`, {
+    code: licenseKey,
+    product_id: IDATARIVER_PRODUCT_ID
+}, {
+    headers: {
+        'Authorization': `Bearer ${IDATARIVER_API_KEY}`,
+        'Content-Type': 'application/json'
     }
 });
             console.log('授权码已激活');
