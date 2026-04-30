@@ -35,7 +35,9 @@ app.post('/redeem', async (req, res) => {
                 product_id: IDATARIVER_PRODUCT_ID
             },
             headers: {
-                'Authorization': `Bearer ${IDATARIVER_API_KEY}`
+               'Authorization': `Bearer ${NEWAPI_ADMIN_KEY}`,
+        'Content-Type': 'application/json',
+        'New-Api-User': '0'  // 增加这一行，0 代表 root 用户
             }
         });
 
