@@ -80,7 +80,9 @@ app.post('/redeem', async (req, res) => {
             }
         });
 
-        const newToken = tokenResponse.data.data.key;
+        // 更稳健地获取令牌
+const responseData = tokenResponse.data;
+const newToken = responseData.data?.key || responseData.key || responseData.token;
         console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
 
         // 4. 激活授权码（标记为已使用，防止重复兑换）
