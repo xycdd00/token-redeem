@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API令牌兑换中心</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f4f7f6; }
+        .container { background: white; padding: 2rem 3rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 100%; }
+        h2 { color: #333; margin-bottom: 1.5rem; }
+        input[type="text"] { width: 100%; padding: 12px; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #007bff; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; width: 100%; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        .result-box { margin-top: 1.5rem; padding: 15px; border-radius: 6px; background-color: #f0f8ff; border: 1px solid #b6d4fe; text-align: left; word-break: break-all; display: none; }
+        .error-box { background-color: #fff0f0; border-color: #f5c6cb; color: #721c24; }
+        .success-box { background-color: #f0fff4; border-color: #b6fec6; color: #155724; }
+        .label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔑 兑换你的 API 令牌</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 20px;">请输入你购买套餐后获得的授权码</p>
+        
+        <input type="text" id="licenseKey" placeholder="例如：LIC-XXXX-XXXX-XXXX">
+        <button onclick="redeemKey()">立即兑换，获取令牌</button>
+
+        <div id="resultMessage" class="result-box"></div>
+    </div>
+
+    <script>
+        async function redeemKey() {
+            const licenseKey = document.getElementById('licenseKey').value.trim();
+            const resultDiv = document.getElementById('resultMessage');
+            
+            if (!licenseKey) {
+                showResult('请输入授权码', 'error');
+                return;
+            }
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box';
+            resultDiv.textContent = '兑换中，请稍候...';
+
+            try {
+                const response = await fetch('/redeem', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ licenseKey }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(`✅ 兑换成功！<br><span class="label">你的API令牌：</span><strong style="color: #007bff;">${data.apiKey}</strong><br><small>请立即复制并妥善保管，此令牌仅显示一次。</small>`, 'success');
+                } else {
+                    showResult(`❌ 兑换失败：${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult('网络错误，请稍后再试。', 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.innerHTML = message;
+            resultDiv.className = `result-box ${type === 'success' ? 'success-box' : 'error-box'}`;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
