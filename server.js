@@ -66,32 +66,25 @@ app.post('/redeem', async (req, res) => {
             console.log('无法解析业务参数，使用默认额度');
         }
 
-                  // 3. 从令牌池中发放一个令牌（绕过 API 创建问题）
-    console.log('授权码验证通过，正在从令牌池发放令牌...');
-    let tokenPool = [];
-    try {
-        tokenPool = JSON.parse(process.env.TOKEN_POOL || '[]');
-    } catch (e) {
-        console.error('令牌池格式错误，请检查环境变量 TOKEN_POOL');
+                     // 3. 从令牌列表里发放第一个令牌（纯文本格式，防格式错误）
+    console.log('授权码验证通过，正在从令牌列表发放令牌...');
+    const tokenListEnv = process.env.TOKEN_LIST || '';
+    const tokenPool = tokenListEnv.split(',').filter(t => t.trim() !== '');
+
+    if (tokenPool.length === 0) {
+        console.error('令牌列表为空，请及时补充');
+        return res.status(500).json({ success: false, message: '系统库存不足，请联系管理员' });
     }
 
-    if (!tokenPool || tokenPool.length === 0) {
-        console.error('令牌池已空，请及时补充');
-        return res.status(500).json({ success: false, message: '服务暂不可用，请联系管理员补充库存' });
-    }
-
-    // 取出第一个令牌，然后从池子里移走它
-    const issuedToken = tokenPool.shift();
+    // 取出第一个令牌
+    const issuedToken = tokenPool.shift().trim();
     console.log(`发放令牌成功: ${issuedToken.substring(0, 10)}...`);
-
-    // 更新令牌池环境变量（注意：这里仅作演示，实际生产环境需谨慎管理）
-    // 为简化操作，建议在兑换成功后手动去 Zeabur 更新 TOKEN_POOL 的值，移除已发放的令牌。
+    
+    // 更新环境变量（移除已发放的令牌）
+    process.env.TOKEN_LIST = tokenPool.join(',');
+  
         // 5. 返回令牌给用户
-        res.json({
-            success: true,
-            message: '兑换成功！',
-            apiKey: newToken
-        });
+       res.json({ success: true, message: '兑换成功！', apiKey: issuedToken });
 
     } catch (error) {
         console.error('兑换过程出错:', error.response?.data || error.message);
