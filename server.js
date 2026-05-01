@@ -115,7 +115,7 @@ app.post('/redeem', async (req, res) => {
             message: '兑换成功！',
             apiKey: issuedToken
         });
-       res.json({ success: true, message: '兑换成功！', apiKey: issuedToken });
+     
 
     } catch (error) {
         console.error('兑换过程出错:', error.response?.data || error.message);
