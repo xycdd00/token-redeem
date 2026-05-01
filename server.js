@@ -66,24 +66,55 @@ app.post('/redeem', async (req, res) => {
             console.log('无法解析业务参数，使用默认额度');
         }
 
-                     // 3. 从令牌列表里发放第一个令牌（纯文本格式，防格式错误）
-    console.log('授权码验证通过，正在从令牌列表发放令牌...');
-    const tokenListEnv = process.env.TOKEN_LIST || '';
-    const tokenPool = tokenListEnv.split(',').filter(t => t.trim() !== '');
+                            // 3. 从令牌列表里发放第一个令牌（增加防重检查）
+        console.log('授权码验证通过，正在从令牌列表发放令牌...');
+        const tokenListEnv = process.env.TOKEN_LIST || '';
+        const tokenPool = tokenListEnv.split(',').filter(t => t.trim() !== '');
 
-    if (tokenPool.length === 0) {
-        console.error('令牌列表为空，请及时补充');
-        return res.status(500).json({ success: false, message: '系统库存不足，请联系管理员' });
-    }
+        // *** 关键修复：检查令牌池是否为空，并用一个确定存在的变量来保存发放的令牌 ***
+        if (tokenPool.length === 0) {
+            console.error('令牌池已空，请及时补充');
+            // 注意：如果之前已经激活了授权码，这里会很麻烦，所以一定要先检查库存
+            return res.status(500).json({ success: false, message: '系统库存不足，请联系管理员' });
+        }
 
-    // 取出第一个令牌
-    const issuedToken = tokenPool.shift().trim();
-    console.log(`发放令牌成功: ${issuedToken.substring(0, 10)}...`);
-    
-    // 更新环境变量（移除已发放的令牌）
-    process.env.TOKEN_LIST = tokenPool.join(',');
-  
+        // 取出第一个令牌，并确保它是一个有效的字符串
+        const issuedToken = tokenPool.shift().trim();
+        
+        // *** 增加安全校验，防止 issuedToken 为空或未定义 ***
+        if (!issuedToken || !issuedToken.startsWith('sk-')) {
+            console.error('发放令牌失败，令牌格式无效:', issuedToken);
+            return res.status(500).json({ success: false, message: '令牌发放异常，请联系管理员' });
+        }
+
+        console.log(`发放令牌成功: ${issuedToken.substring(0, 10)}...`);
+        
+        // 更新令牌池环境变量
+        process.env.TOKEN_LIST = tokenPool.join(',');
+
+        // 4. 激活授权码（标记为已使用）—— 只有在令牌成功取出之后才执行
+        try {
+            console.log('正在激活授权码:', licenseKey);
+            await axios.post(`https://api.idatariver.com/mapi/license/activate`, null, {
+                params: { 
+                    code: licenseKey, 
+                    product_id: IDATARIVER_PRODUCT_ID, 
+                    secret: IDATARIVER_API_KEY 
+                }
+            });
+            console.log('授权码激活成功');
+        } catch (activateError) {
+            // 如果激活失败，记录错误，但令牌已经取出，需要人工处理
+            console.error('激活授权码失败，请手动检查并处理该授权码:', licenseKey, activateError.response?.data || activateError.message);
+            // 这里可以考虑把令牌放回池子，或标记为异常，但我们先记录日志
+        }
+        
         // 5. 返回令牌给用户
+        res.json({
+            success: true,
+            message: '兑换成功！',
+            apiKey: issuedToken
+        });
        res.json({ success: true, message: '兑换成功！', apiKey: issuedToken });
 
     } catch (error) {
