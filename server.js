@@ -66,31 +66,26 @@ app.post('/redeem', async (req, res) => {
             console.log('无法解析业务参数，使用默认额度');
         }
 
-               // 3. 授权码有效，调用New-API创建令牌
-        console.log('授权码验证通过，正在生成API令牌...');
-        const tokenResponse = await axios.post(`${NEWAPI_BASE_URL}/api/token/`, {
-            name: `兑换-${licenseKey.substring(0, 8)}`,
-            remain_quota: tokenQuota,
-            unlimited_quota: false,
-        }, {
-            headers: {
-                'Authorization': `Bearer ${NEWAPI_ADMIN_KEY}`,
-                'Content-Type': 'application/json',
-                'New-Api-User': process.env.NEWAPI_USER_ID
-            }
-        });
+                  // 3. 从令牌池中发放一个令牌（绕过 API 创建问题）
+    console.log('授权码验证通过，正在从令牌池发放令牌...');
+    let tokenPool = [];
+    try {
+        tokenPool = JSON.parse(process.env.TOKEN_POOL || '[]');
+    } catch (e) {
+        console.error('令牌池格式错误，请检查环境变量 TOKEN_POOL');
+    }
 
-        // 4. 精确解析令牌：根据实际返回 { "key": "sk-..." } 读取
-        const newToken = tokenResponse.data.key;
+    if (!tokenPool || tokenPool.length === 0) {
+        console.error('令牌池已空，请及时补充');
+        return res.status(500).json({ success: false, message: '服务暂不可用，请联系管理员补充库存' });
+    }
 
-        if (!newToken) {
-            console.error('解析令牌失败，完整响应:', JSON.stringify(tokenResponse.data));
-            return res.status(500).json({ success: false, message: '令牌创建失败，请联系管理员' });
-        }
+    // 取出第一个令牌，然后从池子里移走它
+    const issuedToken = tokenPool.shift();
+    console.log(`发放令牌成功: ${issuedToken.substring(0, 10)}...`);
 
-        console.log(`API令牌生成成功: ${newToken.substring(0, 10)}...`);
-
-        // 5. 激活授权码 ...
+    // 更新令牌池环境变量（注意：这里仅作演示，实际生产环境需谨慎管理）
+    // 为简化操作，建议在兑换成功后手动去 Zeabur 更新 TOKEN_POOL 的值，移除已发放的令牌。
         // 5. 返回令牌给用户
         res.json({
             success: true,
